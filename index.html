@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hand Palm Rasengan with Particles</title>
+    <title>3D Hand Palm Rasengan with Particles</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body, html {
             margin: 0;
@@ -14,28 +15,82 @@
             height: 100%;
             overflow: hidden;
         }
-        #output-canvas {
+        #input-video {
+            position: absolute;
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
+        #output-canvas {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
     </style>
 </head>
 <body>
-    <video id="input-video" style="display: none;"></video>
+    <video id="input-video" autoplay playsinline></video>
     <canvas id="output-canvas"></canvas>
 
     <script>
         const videoElement = document.getElementById('input-video');
         const canvasElement = document.getElementById('output-canvas');
-        const canvasCtx = canvasElement.getContext('2d');
 
-        function resizeCanvas() {
-            canvasElement.width = window.innerWidth;
-            canvasElement.height = window.innerHeight;
+        // Three.js setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: canvasElement, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        // Rasengan sphere
+        const rasenganGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+        const rasenganMaterial = new THREE.MeshPhongMaterial({
+            color: 0x6495ED,
+            transparent: true,
+            opacity: 0.8,
+            shininess: 100
+        });
+        const rasenganSphere = new THREE.Mesh(rasenganGeometry, rasenganMaterial);
+        scene.add(rasenganSphere);
+
+        // Particles
+        const particleCount = 500;
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount * 3; i += 3) {
+            const r = 0.6 + Math.random() * 0.2;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+
+            particlePositions[i] = r * Math.sin(phi) * Math.cos(theta);
+            particlePositions[i + 1] = r * Math.sin(phi) * Math.sin(theta);
+            particlePositions[i + 2] = r * Math.cos(phi);
         }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+        const particlesMaterial = new THREE.PointsMaterial({
+            color: 0xFFFFFF,
+            size: 0.02,
+            transparent: true,
+            opacity: 0.7
+        });
+
+        const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particles);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8);
+        directionalLight.position.set(1, 1, 1);
+        scene.add(directionalLight);
+
+        camera.position.z = 5;
 
         const hands = new Hands({locateFile: (file) => {
             return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
@@ -47,137 +102,49 @@
             minTrackingConfidence: 0.5
         });
 
-        let rotation = 0;
-        let particles = [];
-
-        class Particle {
-            constructor(x, y, radius) {
-                this.x = x;
-                this.y = y;
-                this.radius = Math.max(radius, 0.1);
-                this.baseRadius = this.radius;
-                this.angle = Math.random() * Math.PI * 2;
-                this.speed = 0.05 + Math.random() * 0.1;
-            }
-
-            update() {
-                this.angle += this.speed;
-                this.radius = Math.max(this.baseRadius + Math.sin(this.angle) * 2, 0.1);
-            }
-
-            draw(ctx) {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, Math.max(this.radius, 0.1), 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(100, 149, 237, 0.7)';
-                ctx.fill();
-            }
-        }
-
-        function drawRasengan(ctx, x, y, radius) {
-            const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-            gradient.addColorStop(0.2, 'rgba(100, 149, 237, 0.8)');
-            gradient.addColorStop(1, 'rgba(0, 0, 139, 0.8)');
-
-            ctx.save();
-            ctx.translate(x, y);
-
-            for (let i = 0; i < 5; i++) {
-                ctx.save();
-                ctx.rotate(rotation + i * Math.PI / 2.5);
-                ctx.scale(1, 0.6);
-                ctx.beginPath();
-                ctx.arc(0, 0, radius * (1 - i * 0.15), 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(100, 149, 237, ${0.2 - i * 0.04})`;
-                ctx.fill();
-                ctx.restore();
-            }
-
-            ctx.beginPath();
-            ctx.arc(0, 0, radius, 0, Math.PI * 2);
-            ctx.fillStyle = gradient;
-            ctx.fill();
-
-            for (let i = 0; i < 8; i++) {
-                ctx.save();
-                ctx.rotate(rotation * (i % 2 ? 1 : -1));
-                ctx.beginPath();
-                ctx.arc(0, 0, radius * 0.8, 0, Math.PI);
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-                ctx.stroke();
-                ctx.restore();
-            }
-
-            ctx.restore();
-
-            particles.forEach(particle => {
-                particle.update();
-                particle.draw(ctx);
-            });
-
-            if (particles.length < 50) {
-                const angle = Math.random() * Math.PI * 2;
-                const distance = radius * (0.8 + Math.random() * 0.4);
-                particles.push(new Particle(
-                    x + Math.cos(angle) * distance,
-                    y + Math.sin(angle) * distance,
-                    Math.max(1 + Math.random() * 2, 0.1)
-                ));
-            }
-
-            particles = particles.filter(p =>
-                Math.hypot(p.x - x, p.y - y) < radius * 1.5
-            );
-        }
+        let lastZPosition = 0;
+        const smoothingFactor = 0.1;
 
         hands.onResults((results) => {
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                const palmCenter = {
+                    x: (landmarks[0].x + landmarks[5].x + landmarks[9].x + landmarks[13].x + landmarks[17].x) / 5,
+                    y: (landmarks[0].y + landmarks[5].y + landmarks[9].y + landmarks[13].y + landmarks[17].y) / 5,
+                    z: (landmarks[0].z + landmarks[5].z + landmarks[9].z + landmarks[13].z + landmarks[17].z) / 5
+                };
 
-            const aspectRatio = results.image.width / results.image.height;
-            let drawWidth, drawHeight, offsetX, offsetY;
+                lastZPosition = lastZPosition * (1 - smoothingFactor) + palmCenter.z * smoothingFactor;
 
-            if (canvasElement.width / canvasElement.height > aspectRatio) {
-                drawWidth = canvasElement.width;
-                drawHeight = canvasElement.width / aspectRatio;
-                offsetX = 0;
-                offsetY = (canvasElement.height - drawHeight) / 2;
-            } else {
-                drawHeight = canvasElement.height;
-                drawWidth = canvasElement.height * aspectRatio;
-                offsetX = (canvasElement.width - drawWidth) / 2;
-                offsetY = 0;
+                const baseScale = 1;
+                const scaleMultiplier = 1 + lastZPosition * 3;
+                const newScale = baseScale * scaleMultiplier;
+
+                rasenganSphere.position.set(
+                    (palmCenter.x - 0.5) * 10,
+                    -(palmCenter.y - 0.5) * 10,
+                    -lastZPosition * 5
+                );
+                rasenganSphere.scale.set(newScale, newScale, newScale);
+
+                particles.position.copy(rasenganSphere.position);
+                particles.scale.set(newScale, newScale, newScale);
             }
-
-            canvasCtx.drawImage(results.image, offsetX, offsetY, drawWidth, drawHeight);
-
-            if (results.multiHandLandmarks) {
-                for (const landmarks of results.multiHandLandmarks) {
-                    const palmCenter = {
-                        x: (landmarks[0].x + landmarks[5].x + landmarks[9].x + landmarks[13].x + landmarks[17].x) / 5,
-                        y: (landmarks[0].y + landmarks[5].y + landmarks[9].y + landmarks[13].y + landmarks[17].y) / 5
-                    };
-
-                    drawRasengan(
-                        canvasCtx,
-                        palmCenter.x * drawWidth + offsetX,
-                        palmCenter.y * drawHeight + offsetY,
-                        70
-                    );
-                }
-            }
-
-            canvasCtx.restore();
         });
 
         function animate() {
-            rotation += 0.05;
             requestAnimationFrame(animate);
+            rasenganSphere.rotation.x += 0.01;
+            rasenganSphere.rotation.y += 0.01;
+
+            particles.rotation.x += 0.5;
+            particles.rotation.y += 0.5;
+
+            renderer.render(scene, camera);
         }
         animate();
 
-        const camera = new Camera(videoElement, {
+        const cameraUtils = new Camera(videoElement, {
             onFrame: async () => {
                 await hands.send({image: videoElement});
             },
@@ -185,7 +152,44 @@
             height: 720,
             facingMode: { exact: "environment" }
         });
-        camera.start();
+        cameraUtils.start();
+
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        canvasElement.addEventListener('mousedown', (event) => {
+            isDragging = true;
+        });
+
+        canvasElement.addEventListener('mouseup', (event) => {
+            isDragging = false;
+        });
+
+        canvasElement.addEventListener('mousemove', (event) => {
+            if (isDragging) {
+                const deltaMove = {
+                    x: event.offsetX - previousMousePosition.x,
+                    y: event.offsetY - previousMousePosition.y
+                };
+
+                rasenganSphere.rotation.y += deltaMove.x * 0.01;
+                rasenganSphere.rotation.x += deltaMove.y * 0.01;
+
+                particles.rotation.y += deltaMove.x * 0.01;
+                particles.rotation.x += deltaMove.y * 0.01;
+            }
+
+            previousMousePosition = {
+                x: event.offsetX,
+                y: event.offsetY
+            };
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
