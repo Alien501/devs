@@ -6,7 +6,7 @@ body, ul {
 }
 
 body {
-    font-family: Arial, sans-serif;
+    font-family: sans-serif;
     margin: 0;
     padding: 0;
 }
@@ -16,11 +16,18 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #333;
+    background-color: #1111118a;
     padding: 1rem;
     color: white;
-    position: relative; 
+    position: fixed;
     transition: background-color 0.3s ease;
+    width: 90%;
+    margin: 10px auto;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50vh);
+    border-radius: 25px;
+    backdrop-filter: blur(10px);
 }
 
 .navbar:hover {
@@ -31,6 +38,7 @@ body {
     color: white;
     text-decoration: none;
     font-size: 1.5rem;
+    font-weight: bold;
     transition: color 0.3s ease;
 }
 
@@ -45,13 +53,13 @@ body {
     margin: 0;
     padding: 0;
     transition: opacity 0.3s ease, max-height 0.3s ease;
-    overflow: hidden; 
-    max-height: 0; 
+    overflow: hidden;
+    max-height: 0;
 }
 
 .nav-links.active {
-    max-height: 500px; 
-    opacity: 1; 
+    max-height: 500px;
+    opacity: 1;
 }
 
 .nav-links li {
@@ -91,11 +99,11 @@ main {
 
 /* Footer styles */
 footer {
-    background-color: #333;
+    background-color: #000000;
     color: white;
     text-align: center;
     padding: 1rem;
-    position: fixed;
+    /* position: fixed; */
     width: 100%;
     bottom: 0;
     transition: background-color 0.3s ease;
@@ -119,4 +127,10 @@ footer:hover {
     .hamburger {
         display: block;
     }
+}
+
+
+.main-container {
+    width: 100%;
+    height: 100vh;
 }
